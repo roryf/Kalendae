@@ -83,6 +83,54 @@
 			selected:[Kalendae.moment().subtract({M:1}), Kalendae.moment().add({M:1})]
 		});
 
+	</script>
+
+	<p>Month header day select (Multi-select)</p>
+		<script type="text/javascript" charset="utf-8">
+		var firstDay = Kalendae.moment().startOf('month').weekday(2),
+			secondDay = Kalendae.moment().startOf('month').weekday(4),
+			endMonth = Kalendae.moment().endOf('month');
+			selected = [];
+
+		while(firstDay <= endMonth) {
+			if (firstDay >= Kalendae.moment().startOf('month')) {
+				selected.push(firstDay.clone());
+				selected.push(secondDay.clone());
+			}
+			firstDay.add(7, 'd');
+			secondDay.add(7, 'd');
+		}
+
+		new Kalendae({
+			attachTo:document.body,
+			months:3,
+			mode:'multiple',
+			dayHeaderClickable: true,
+			selected: selected
+		});
+	</script>
+
+	<p>Week Select</p>
+	<script type="text/javascript" charset="utf-8">
+		new Kalendae(document.body, {
+			months:1,
+			mode:'week',
+			selected:Kalendae.moment().subtract({M:1})
+		});
+
+		new Kalendae({
+			attachTo:document.body,
+			months:2,
+			mode:'week',
+			selected:Kalendae.moment().subtract({M:1})
+		});
+
+		new Kalendae({
+			attachTo:document.body,
+			months:3,
+			mode:'week',
+			selected:Kalendae.moment().subtract({M:1})
+		});
 
 	</script>
 
@@ -119,6 +167,16 @@
 
 	</script>
 
+    <hr>
+    <p>End Date - Direction: future - Single Select</p>
+    <script type="text/javascript">
+        new Kalendae(document.body, {
+            months: 3,
+            direction: 'future',
+            endDate: Kalendae.moment().startOf('month').add(75, 'days')
+        });
+    </script>
+
 
 
 	<hr>
@@ -141,6 +199,16 @@
 			months:2
 		});
 	</script>
+	<hr>
+	
+	Click this input element (Auto closes after selection): <input type="text" value="2/16/2012" id="input2">
+	<script type="text/javascript" charset="utf-8">
+		var k4 = new Kalendae.Input('input2', {
+			months:1,
+			closeOnSelection: true
+		});
+	</script>
+
 
 	<hr>
 	This calendar is auto-created.
@@ -149,6 +217,15 @@
 	<hr>
 	So is the one on this input.
 	<input type="text" class="auto-kal">
+
+	<hr>
+	<div style="width: 300px;height: 300px;overflow:scroll;border:1px solid black;">
+		Scroll down and left to find an input.
+		<div style="height:300px;"></div>
+		<div style="text-align: right;width: 600px;">
+			<input type="text" class="auto-kal">
+		</div>
+	</div>
 
 	<hr>
 	This calendar is auto-created with months: 3 and direction: 'future'.
@@ -164,7 +241,8 @@
 
 	<hr>
 	This calendar has no year navigation (useYearNav: false).
-	<div class="auto-kal" data-kal="useYearNav: false">
+	<div class="auto-kal" data-kal="useYearNav: false"></div>
+
 
 </body>
 </html>

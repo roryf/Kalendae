@@ -3,13 +3,16 @@ Kalendae.Input = function (targetElement, options) {
 
 	var $input = this.input = util.$(targetElement),
 		overwriteInput,
-		$closeButton;
+		$closeButton,
+		changing = false;
 
 	if (!$input || $input.tagName !== 'INPUT') throw "First argument for Kalendae.Input must be an <input> element or a valid element id.";
 
 	var self = this,
 		classes = self.classes,
 		opts = self.settings = util.merge(self.defaults, options);
+
+	this._events = {};
 
 	//force attachment to the body
 	opts.attachTo = window.document.body;
@@ -37,27 +40,42 @@ Kalendae.Input = function (targetElement, options) {
 	$container.style.display = 'none';
 	util.addClassName($container, classes.positioned);
 
-	util.addEvent($container, 'mousedown', function (event, target) {
+	this._events.containerMouseDown = util.addEvent($container, 'mousedown', function (event, target) {
 		noclose = true; //IE8 doesn't obey event blocking when it comes to focusing, so we have to do this shit.
 	});
-	util.addEvent(window.document, 'mousedown', function (event, target) {
+
+	this._events.documentMousedown = util.addEvent(window.document, 'mousedown', function (event, target) {
 		noclose = false;
 	});
 
-	util.addEvent($input, 'focus', function () {
+	this._events.inputFocus = util.addEvent($input, 'focus', function () {
+		changing = true; // prevent setSelected from altering the input contents.
 		self.setSelected(this.value);
+		changing = false;
 		self.show();
 	});
 
-	util.addEvent($input, 'blur', function () {
+	this._events.inputBlur = util.addEvent($input, 'blur', function () {
 		if (noclose && util.isIE8()) {
 			noclose = false;
 			$input.focus();
 		}
 		else self.hide();
 	});
-	util.addEvent($input, 'keyup', function (event) {
-		self.setSelected(this.value);
+
+	this._events.inputKeyup = util.addEvent($input, 'keyup', function (event) {
+		changing = true; // prevent setSelected from altering the input contents.
+		var dateValue = parseDates(this.value, self.settings.parseSplitDelimiter, self.settings.format);
+
+		// If the date in the field is parsable as a valid date, update.  Otherwise deselect and show default view.
+		if (dateValue && dateValue.length && dateValue[0] && dateValue[0].year() > 1000) {
+			self.setSelected(this.value);
+		} else {
+			self.setSelected('', null);
+			self.viewStartDate = moment(self.defaultView);
+			self.draw();
+		}
+		changing = false;
 	});
 
 	var $scrollContainer = util.scrollContainer($input);
@@ -71,7 +89,16 @@ Kalendae.Input = function (targetElement, options) {
 	}
 
 	self.subscribe('change', function () {
+		if (changing) {
+			// the change event came from an internal modification, don't update the field contents
+			return;
+		}
 		$input.value = self.getSelected();
+		util.fireEvent($input, 'change');
+		if (opts.closeOnSelection && opts.mode === 'single') {
+			$input.blur();
+			self.hide();
+		}
 	});
 
 };
@@ -96,26 +123,31 @@ Kalendae.Input.prototype = util.merge(Kalendae.prototype, {
 			pos = util.getPosition($input),
 			$scrollContainer = util.scrollContainer($input),
 			scrollTop = $scrollContainer ? $scrollContainer.scrollTop : 0,
+			scrollLeft = $scrollContainer ? $scrollContainer.scrollLeft : 0,
 			opts = this.settings;
 
 		style.display = '';
 		switch (opts.side) {
 			case 'left':
-				style.left = (pos.left - util.getWidth($container) + opts.offsetLeft) + 'px';
+				style.left = (pos.left - util.getWidth($container) + opts.offsetLeft - scrollLeft) + 'px';
 				style.top  = (pos.top + opts.offsetTop - scrollTop) + 'px';
 				break;
 			case 'right':
-				style.left = (pos.left + util.getWidth($input)) + 'px';
+				style.left = (pos.left + util.getWidth($input) - scrollLeft) + 'px';
 				style.top  = (pos.top + opts.offsetTop - scrollTop) + 'px';
 				break;
 			case 'top':
-				style.left = (pos.left + opts.offsetLeft) + 'px';
+				style.left = (pos.left + opts.offsetLeft - scrollLeft) + 'px';
 				style.top  = (pos.top - util.getHeight($container) + opts.offsetTop - scrollTop) + 'px';
+				break;
+			case 'bottom right':
+				style.left = (pos.left - util.getWidth($container) + util.getWidth($input) + opts.offsetLeft) + 'px';
+				style.top  = (pos.top + util.getHeight($input) + opts.offsetTop - scrollTop) + 'px';
 				break;
 			case 'bottom':
 				/* falls through */
 			default:
-				style.left = (pos.left + opts.offsetLeft) + 'px';
+				style.left = (pos.left + opts.offsetLeft - scrollLeft) + 'px';
 				style.top  = (pos.top + util.getHeight($input) + opts.offsetTop - scrollTop) + 'px';
 				break;
 		}
@@ -128,7 +160,25 @@ Kalendae.Input.prototype = util.merge(Kalendae.prototype, {
 	hide : function () {
 		this.container.style.display = 'none';
 		this.publish('hide', this);
-	}
+	},
 
+	destroy : function() {
+		var $container = this.container;
+		var $input = this.input;
+
+		util.removeEvent($container, 'mousedown', this._events.containerMousedown);
+
+		util.removeEvent(window.document, 'mousedown', this._events.documentMousedown);
+
+		util.removeEvent($input, 'focus', this._events.inputFocus);
+
+		util.removeEvent($input, 'blur', this._events.inputBlur);
+
+		util.removeEvent($input, 'keyup', this._events.inputKeyup);
+
+		if ($container.parentNode) {
+			$container.parentNode.removeChild($container);
+		}
+	}
 });
 

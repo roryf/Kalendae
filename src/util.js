@@ -5,6 +5,12 @@ var util = Kalendae.util = {
 		return !!( (/msie 8./i).test(navigator.appVersion) && !(/opera/i).test(navigator.userAgent) && window.ActiveXObject && XDomainRequest && !window.msPerformance );
 	},
 
+	isTouchDevice: function () {
+		return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0));
+		//navigator.maxTouchPoints for microsoft IE11
+		//navigator.msMaxTouchPoints for microsoft IE backwards compatibility
+	},
+
 // ELEMENT FUNCTIONS
 
 	$: function (elem) {
@@ -30,16 +36,24 @@ var util = Kalendae.util = {
 	},
 
 	getStyle: function (elem, styleProp) {
-		var y;
+		var y, s;
 		if (elem.currentStyle) {
 			y = elem.currentStyle[styleProp];
 		} else if (window.getComputedStyle) {
-			y = window.getComputedStyle(elem, null)[styleProp];
+      s = window.getComputedStyle(elem, null);
+      y = s ? s[styleProp] : '';
 		}
 		return y;
 	},
 
-	domReady:function (f){/in/.test(document.readyState) ? setTimeout(function() {util.domReady(f);},9) : f()},
+	domReady: function (f) {
+		var state = document.readyState;
+		if (state === 'complete' || state === 'interactive') {
+			f();
+		} else {
+			setTimeout(function() { util.domReady(f); }, 9);
+		}
+	},
 
 	// Adds a listener callback to a DOM element which is fired on a specified
 	// event.  Callback is sent the event object and the element that triggered the event
@@ -60,7 +74,12 @@ var util = Kalendae.util = {
 		if (elem.attachEvent) { // IE only.  The "on" is mandatory.
 			elem.attachEvent("on" + eventName, listener);
 		} else { // Other browsers.
-			elem.addEventListener(eventName, listener, false);
+			if(eventName === 'mousedown' && util.isTouchDevice()) {
+				//works on touch devices
+				elem.addEventListener('touchstart', listener, false);
+			} else {
+				elem.addEventListener(eventName, listener, false);
+			}
 		}
 		return listener;
 	},
@@ -72,6 +91,18 @@ var util = Kalendae.util = {
 			elem.detachEvent("on" + event, listener);
 		} else { // Other browsers.
 			elem.removeEventListener(event, listener, false);
+		}
+	},
+
+	fireEvent: function (elem, event) {
+		if (document.createEvent) {
+			var e = document.createEvent('HTMLEvents');
+			e.initEvent(event, true, true);
+			elem.dispatchEvent(e);
+		} else if (document.createEventObject) {
+			elem.fireEvent('on' + event) ;
+		} else if (typeof elem['on' + event] == 'function' ) {
+			elem['on' + event]();
 		}
 	},
 
@@ -168,7 +199,7 @@ var util = Kalendae.util = {
 	},
 
 	isArray: function (array) {
-		return Object.prototype.toString.call(array) == "[object Array]"
+		return Object.prototype.toString.call(array) == "[object Array]";
 	}
 };
 
